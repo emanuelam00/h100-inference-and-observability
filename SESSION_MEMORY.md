@@ -4,7 +4,7 @@
 > compaction and seeds a future project WIKI. Captures decisions, open
 > questions, clarifications, failures/gotchas, and progress.
 > **Cadence.** Refreshed roughly every 5 interactions.
-> **Last updated:** 2026-06-06 · interaction ~13 · *Stage A complete, pre-VM.*
+> **Last updated:** 2026-06-06 · interaction ~22 · *Agent live on VM/Nebius; dev eval ran.*
 
 ---
 
@@ -57,6 +57,14 @@ run), sustained over a 5-minute window.
 - **Prompt brace bug:** `VERIFY_SYSTEM` is passed raw (not `.format`-ed), so its
   JSON example must use single braces, not `{{ }}`. Fixed.
 
+## 4b. Environment specs (→ future README prerequisite)
+- **Dev VM:** Ubuntu 24.04, **4 vCPU / 32 GB RAM** (Emanuel's). Comfortably
+  above the Langfuse stack's ≥8 GB floor. ⚠️ **TODO for final README.md:** add a
+  "Resource requirements" prerequisites section — dev box (≥4 vCPU / ≥8 GB,
+  16 GB+ comfortable) vs H100 box (1× H100 80 GB) — once the build is finished.
+- **H100 box:** 1× H100 80 GB (Stage B only).
+- **Local laptop:** M1 Mac (kept clean; not used for the build — vLLM won't run on it).
+
 ## 5. Reference facts
 - Nebius base URL: `https://api.tokenfactory.nebius.com/v1`, key `NEBIUS_API_KEY`.
   Qwen3-30B-A3B-2507 pricing ~$0.10/$0.30 per 1M in/out tokens, ~88 tok/s.
@@ -77,8 +85,26 @@ run), sustained over a 5-minute window.
 - `RUNBOOK.md`. Self-tests: config resolution, verdict parse, router, eval
   carry-forward (0.25→0.50), dashboard JSON, exporter output, py_compile — all pass.
 
-**Pending (VM, user):** run RUNBOOK §0–5; confirm (1) a question triggers a
-revise, (2) dashboard panels react. Then tune prompts on real Nebius behavior.
+**VM milestone (2026-06-06, Nebius dev run — THROWAWAY numbers):**
+- Agent live on VM, `/answer` working (note: HTTP field is `db`, not `db_id`).
+- Dev eval (30 q): overall **40%** (12/30). Per-iter: iter0 36.7% → iter1 40% →
+  iter2 40%. 11/30 revised, avg 1.63 iters, 0 errors, mean 1.95s/run.
+- **Read:** loop earns its keep but barely (+1 net question, +3.3pts); 2nd revise
+  adds nothing. Low yield (11 revises → 1 win).
+- Confirmed (1) revises do trigger. (2) dashboard reaction still TODO.
+
+**Pending (VM, user):** confirm dashboard panels react (mock exporter + /burst).
+
+## 6b. Improvement backlog (post-data, do NOT pre-tune)
+- **Verify too lenient:** passed `formula_1` which had 11 duplicate rows vs gold's
+  `SELECT DISTINCT` (1 row) → scored fail, loop never fired. Lever: tighten verify
+  to catch duplicate/wrong-shape results.
+- **Duplicates vs gold:** add a `SELECT DISTINCT` nudge to generate prompt when a
+  single/unique answer is implied (BIRD gold often uses DISTINCT).
+- **Revise effectiveness low:** 2nd revise fixed nothing — investigate.
+- **Check composition:** net +1 may hide "+2 fixed, −1 broken" — inspect
+  per-question `per_iter_correct` before writing the agent-value paragraph.
+- All real tuning + numbers must come from the H100 30B run, not Nebius.
 
 **Not started:** Stage A.5 (CPU-vLLM), Stage B (H100: Phase 1 vLLM flags, real
 eval baseline, Phase 6 SLO load test + iteration log), REPORT.md body.
@@ -90,3 +116,8 @@ eval baseline, Phase 6 SLO load test + iteration log), REPORT.md body.
 
 ## 8. Update log
 - 2026-06-06 (int ~13): Initialized. Stage A built & self-tested; report skeleton created.
+- 2026-06-06 (int ~16): Added explicit Docker/Compose/uv install steps to RUNBOOK §0.
+  Logged dev VM spec (4 vCPU / 32 GB) → flagged as future README resource-spec prerequisite.
+- 2026-06-06 (int ~22): Agent live on VM. Dev eval ran (40%, loop +3.3pts). Logged
+  improvement backlog (verify leniency, DISTINCT, revise effectiveness). Explained
+  per-iteration pass rate + carry-forward to user.

@@ -29,6 +29,9 @@ Rules:
 - Join tables using the FOREIGN KEY relationships shown in the schema.
 - When the question asks for a single value, a maximum/minimum, or a "top N",
   use the right aggregation, ORDER BY, and LIMIT.
+- If the question implies a single or unique answer (e.g. "the coordinates",
+  "the name of", "which ..."), use SELECT DISTINCT or aggregation so a join to a
+  one-to-many table doesn't return duplicate rows.
 - Read column descriptions/units in the question literally; do not assume.
 - Output ONLY the SQL inside a single ```sql code block - no prose, no
   comments, no multiple statements."""
@@ -58,7 +61,9 @@ Mark it NOT ok when any of these hold:
   asks for a name but only an id or a count came back, or a needed aggregate is
   missing);
 - the result is obviously the wrong shape (e.g. many rows when a single number
-  was asked for).
+  was asked for);
+- the result is many identical/duplicate rows when the question implies one
+  distinct answer (usually a missing DISTINCT).
 
 Otherwise mark it ok. Be conservative about looping: a well-formed result that
 matches the question's intent is ok even if you cannot be 100% sure it is the
@@ -94,6 +99,8 @@ Rules:
 - If the previous query errored, fix the specific cause named in the result.
 - If it returned nothing or the wrong columns, rethink the joins, filters, and
   aggregation - do not just resubmit the same query.
+- If the result had duplicate rows for a single-answer question, add SELECT
+  DISTINCT or the appropriate aggregation.
 - Output ONLY the corrected SQL inside a single ```sql code block - no prose."""
 
 # Available placeholders: {schema}, {question}, {sql}, {result}, {issue}
