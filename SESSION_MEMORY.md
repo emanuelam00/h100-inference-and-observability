@@ -4,7 +4,7 @@
 > compaction and seeds a future project WIKI. Captures decisions, open
 > questions, clarifications, failures/gotchas, and progress.
 > **Cadence.** Refreshed roughly every 5 interactions.
-> **Last updated:** 2026-06-06 · interaction ~22 · *Agent live on VM/Nebius; dev eval ran.*
+> **Last updated:** 2026-06-06 · interaction ~30 · *Stage A fully validated; H100 prep done.*
 
 ---
 
@@ -93,7 +93,30 @@ run), sustained over a 5-minute window.
   adds nothing. Low yield (11 revises → 1 win).
 - Confirmed (1) revises do trigger. (2) dashboard reaction still TODO.
 
-**Pending (VM, user):** confirm dashboard panels react (mock exporter + /burst).
+**Grafana validated (2026-06-06):** mock exporter + /burst → all 3 categories
+react. Metric-name audit vs installed **vLLM 0.10.2**: ALL dashboard metrics
+present (incl. both gpu_cache_usage_perc & kv_cache_usage_perc) → dashboard
+guaranteed to light up on H100, no changes.
+
+**Stage A = COMPLETE.** CPU smoke test SKIPPED: dev VM CPU is Xeon E5-2660 v2
+(Ivy Bridge) — **no AVX512**, so vLLM CPU build impossible. Audit covered the
+only risk it would have.
+
+**H100 prep done:** `H100_PLAYBOOK.md` (fail-fast ordered session + min-viable
+path), `scripts/start_vllm.sh` (reasoned initial flags: max-model-len 8192,
+gpu-mem-util 0.90, max-num-seqs 256, prefix-caching; Phase-6 levers listed),
+`scripts/check_env.sh` (pre-flight: driver/uv/docker/disk/ports), RUNBOOK Stage B
+(env check + `uv sync` GPU install + CPU build appendix).
+
+**Next:** user books H100 → run H100_PLAYBOOK → fill REPORT.md with real numbers.
+
+**Prompt tweak v2 (2026-06-06, Nebius — KEPT):** added DISTINCT nudge
+(generate+revise) + verify duplicate-row check. Result: overall flat 40%, but
+`formula_1` flipped fail→pass *via the loop* (verify caught dups → revise added
+DISTINCT, iter0 false → iter1 true). Aggregate flat = +1 target fixed offset by
+−1 elsewhere (noise at n=30, non-deterministic backend). Kept edits (principled,
+no regression); real verdict deferred to H100. **`formula_1` is now the Phase-4
+Langfuse trace + agent-value example.**
 
 ## 6b. Improvement backlog (post-data, do NOT pre-tune)
 - **Verify too lenient:** passed `formula_1` which had 11 duplicate rows vs gold's
@@ -121,3 +144,10 @@ eval baseline, Phase 6 SLO load test + iteration log), REPORT.md body.
 - 2026-06-06 (int ~22): Agent live on VM. Dev eval ran (40%, loop +3.3pts). Logged
   improvement backlog (verify leniency, DISTINCT, revise effectiveness). Explained
   per-iteration pass rate + carry-forward to user.
+- 2026-06-06 (int ~26): Applied + validated DISTINCT/verify-duplicate tweak on
+  Nebius. formula_1 fixed via loop (great Langfuse/agent-value example). Aggregate
+  flat (noise). Kept edits, stopped dev-tuning. Pivoting to Phase 2 Grafana check.
+- 2026-06-06 (int ~30): Grafana validated (panels react). Metric audit vs vLLM
+  0.10.2 = all present. CPU smoke test skipped (no AVX512 on E5-2660 v2). Added
+  check_env.sh, H100_PLAYBOOK.md, reasoned start_vllm.sh flags, RUNBOOK Stage B
+  bring-up (env check + GPU install + CPU appendix). Stage A complete.

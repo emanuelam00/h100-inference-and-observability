@@ -197,17 +197,76 @@ Set `LLM_BACKEND=cpu` in `.env` if you also want the agent to talk to it.
 
 ## Stage B — the H100 run (numbers that count)
 
-On the H100 VM, only the LLM backend changes:
+> Full ordered, fail-fast session is in **`H100_PLAYBOOK.md`**. This section is
+> just the *bring-up*: how to see what the VM has and how vLLM gets installed.
 
-1. In `.env`: `LLM_BACKEND=h100` and set `HF_TOKEN` (so vLLM can pull the model).
-2. Start vLLM with your chosen flags: `bash scripts/start_vllm.sh` (Phase 1).
-3. Stop the mock exporter; Prometheus now scrapes real vLLM on `:8000`. Dashboard
-   reacts to real load.
-4. Re-run the eval → `results/eval_baseline.json` (the real baseline).
-5. Phase 6 load test → `load_test/driver.py --rps 10 --duration 300`, diagnose,
-   iterate, save `results/eval_after_tuning.json`.
+### B0. Environment check (what's already on the Nebius H100 VM?)
 
-No agent/eval/dashboard code changes between Stage A and Stage B.
+Nebius H100 images usually ship the **NVIDIA driver + CUDA** (and often Docker)
+but may lack `uv`, the Docker Compose plugin, or `python3-dev`. After cloning the
+repo, run the pre-flight to see exactly what's present vs missing — it installs
+nothing, only reports:
+
+```bash
+bash scripts/check_env.sh
+```
+
+The must-haves it checks: `nvidia-smi` working (driver + the H100 visible),
+`python3` + `python3-dev` headers, `uv`, `git`, `docker` + `docker compose`
+plugin + daemon reachable, ~70 GB free disk (the 30B weights), and that ports
+8000/8001/9090/3000/3001 are free. Install anything marked `✗ MISSING` using the
+commands in §0 above.
+
+### B1. Install vLLM (GPU path — the one you'll use)
+
+vLLM (CUDA build, pinned to **0.10.2** in `uv.lock`) and all other deps install
+in one step — no manual build, no `nvcc` needed (the wheel bundles its own CUDA
+runtime; you only need the NVIDIA **driver** present, which `check_env.sh`
+verifies):
+
+```bash
+uv sync
+# verify the GPU is visible to torch/vLLM before serving:
+uv run python -c "import torch; print('CUDA:', torch.cuda.is_available(), '|', torch.cuda.get_device_name(0))"
+```
+
+If `torch.cuda.is_available()` is `False`, the driver isn't visible to the
+container/venv — fix that before `start_vllm.sh` (it would otherwise fail at
+model load). Then proceed with `H100_PLAYBOOK.md`.
+
+### B2. The run
+
+On the H100 only the LLM backend changes — no agent/eval/dashboard code edits:
+
+1. `.env`: `LLM_BACKEND=h100` and set `HF_TOKEN` (so vLLM can pull the model).
+2. `bash scripts/start_vllm.sh` (flags pre-reasoned in the script; Phase 1).
+3. Stop the mock exporter; Prometheus now scrapes real vLLM on `:8000`.
+4. Eval → `results/eval_baseline.json` (the real baseline).
+5. Load test → `uv run python load_test/driver.py --rps 10 --duration 300`;
+   diagnose, iterate, save `results/eval_after_tuning.json`.
+
+---
+
+## Appendix — vLLM CPU build (reference only; NOT used here)
+
+We do **not** use this: it requires an **x86 CPU with AVX512**, and our dev VM
+(Xeon E5-2660 v2) lacks it, while the H100 box uses the GPU wheel above. Kept for
+completeness if you ever need a CPU stand-in on AVX512 hardware.
+
+```bash
+# Prereqs: gcc/g++ >= 12.3, libnuma-dev, in a SEPARATE venv (conflicts with the
+# CUDA wheel in uv.lock). Build from source:
+sudo apt-get install -y gcc-12 g++-12 libnuma-dev
+git clone https://github.com/vllm-project/vllm.git && cd vllm
+uv venv && source .venv/bin/activate
+uv pip install -r requirements/cpu.txt --torch-backend cpu
+VLLM_TARGET_DEVICE=cpu uv pip install --editable .
+# Serve a small stand-in (reserve 1-2 cores for the framework):
+export VLLM_CPU_KVCACHE_SPACE=8
+vllm serve Qwen/Qwen3-0.6B --port 8000
+```
+
+Ref: https://docs.vllm.ai/en/latest/getting_started/installation/cpu/
 
 ---
 
