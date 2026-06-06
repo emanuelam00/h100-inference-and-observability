@@ -12,16 +12,68 @@ end.
 
 ## 0. Prereqs (Ubuntu 24.04)
 
+### 0a. Base packages
+
 ```bash
-sudo apt-get update && sudo apt-get install -y python3-dev git curl
-# Docker + compose plugin (if not present): https://docs.docker.com/engine/install/ubuntu/
-# uv: https://docs.astral.sh/uv/getting-started/installation/
-curl -LsSf https://astral.sh/uv/install.sh | sh
+sudo apt-get update
+sudo apt-get install -y python3-dev git curl ca-certificates
 ```
 
-Docker note: the Langfuse stack is heavy (postgres + clickhouse + redis +
-minio + 2 langfuse services). Give Docker **≥ 8 GB RAM** or clickhouse will
-OOM-loop.
+### 0b. Docker Engine + Compose plugin (official apt repo)
+
+```bash
+# Remove any distro/old Docker packages that conflict
+for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
+  sudo apt-get remove -y "$pkg" 2>/dev/null || true
+done
+
+# Add Docker's official GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the Docker apt repository (auto-detects the Ubuntu codename, e.g. noble)
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+Run Docker without `sudo` (needed so `docker compose up` works as your user):
+
+```bash
+sudo usermod -aG docker "$USER"
+newgrp docker        # applies the group now; or just log out and back in
+```
+
+Verify:
+
+```bash
+docker --version            # Docker version 2x.x.x
+docker compose version      # Docker Compose version v2.x.x  (note: "compose", no hyphen)
+docker run --rm hello-world # should print "Hello from Docker!"
+```
+
+> The Compose **plugin** (`docker compose`, space) is what `docker-compose.yml`
+> in this repo expects — not the old standalone `docker-compose` (hyphen).
+
+### 0c. uv (Python package/run manager)
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# add uv to PATH for the current shell (or open a new shell):
+source "$HOME/.local/bin/env"
+uv --version
+```
+
+### 0d. Memory note
+
+The Langfuse stack is heavy (postgres + clickhouse + redis + minio + 2 langfuse
+services). Give Docker **≥ 8 GB RAM** (16 GB comfortable) or clickhouse will
+OOM-loop. Check with `free -h`.
 
 ---
 
