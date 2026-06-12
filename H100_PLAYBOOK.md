@@ -34,6 +34,18 @@ uv run python scripts/load_data.py         # BIRD subset (~500 MB)
 
 ## Phase 1 — vLLM (start FIRST; it downloads while you set up)
 
+Two one-time fixes before the first launch:
+```bash
+# (a) vLLM 0.10.2 crashes with transformers 5.x
+#     ("Qwen2Tokenizer has no attribute all_special_tokens_extended"). Pin 4.x.
+#     NOTE: use `uv add`, NOT `uv pip install` — `uv run` re-syncs the venv to the
+#     lock on every call and would otherwise revert a bare pip install back to 5.x.
+uv add 'transformers>=4.51,<5'
+uv run python -c "import transformers; print(transformers.__version__)"   # expect 4.5x
+# (b) vLLM does NOT read .env — export HF_TOKEN so downloads are authenticated/faster:
+export HF_TOKEN=hf_...            # or:  set -a; source .env; set +a
+```
+
 ```bash
 tmux new -s vllm
 bash scripts/start_vllm.sh                 # initial flags already reasoned in the script
@@ -84,10 +96,13 @@ agent**. Fire ~10 questions (the eval below does this). Then in the Langfuse UI:
 ```bash
 uv run python evals/run_eval.py --out results/eval_baseline.json
 ```
-Watch Grafana while it runs (~60 reqs).
-📸 **`screenshots/grafana_eval_run.png`** — dashboard reacting during the eval.
-📸 **`screenshots/grafana_serving.png`** — full dashboard reacting to load.
+Watch Grafana while it runs (~60 reqs, light/sequential load).
+📸 **`screenshots/grafana_eval_run.png`** — dashboard during the eval (this run only).
 ✍️ Copy overall + per-iteration pass rate into `REPORT.md` §2 & §4.
+
+(Note: `grafana_serving.png` — the Phase 2 "full dashboard reacting to a **burst**"
+showcase — is captured later, during the Phase 6 load test, where panels actually
+swing. The eval's gentle load is a weak showcase for it.)
 
 ---
 
@@ -98,6 +113,8 @@ tmux new -s load
 uv run python load_test/driver.py --rps 10 --duration 300    # the SLO target
 ```
 📸 **`screenshots/grafana_before.png`** — dashboard during the baseline load.
+📸 **`screenshots/grafana_serving.png`** — full dashboard with all panels reacting
+   to this burst (the Phase 2 showcase shot; 10 RPS swings the percentile/KV/queue panels).
 
 Diagnose from the dashboard (which metric moves first? queue / KV / TTFT / TPOT?),
 change **one** flag in `start_vllm.sh`, restart vLLM, re-run:

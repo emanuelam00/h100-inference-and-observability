@@ -1,0 +1,82 @@
+emanuel@computeinstance-e00d4cxffgr486vj8c:~/h100-inference-and-observability$ curl -s http://localhost:8000/v1/models | python3 -m json.tool          # model listed?
+{
+    "object": "list",
+    "data": [
+        {
+            "id": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+            "object": "model",
+            "created": 1781269266,
+            "owned_by": "vllm",
+            "root": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+            "parent": null,
+            "max_model_len": 8192,
+            "permission": [
+                {
+                    "id": "modelperm-4f4dbd1907b04380879c32ef2e8b9679",
+                    "object": "model_permission",
+                    "created": 1781269266,
+                    "allow_create_engine": false,
+                    "allow_sampling": true,
+                    "allow_logprobs": true,
+                    "allow_search_indices": false,
+                    "allow_view": true,
+                    "allow_fine_tuning": false,
+                    "organization": "*",
+                    "group": null,
+                    "is_blocking": false
+                }
+            ]
+        }
+    ]
+}
+emanuel@computeinstance-e00d4cxffgr486vj8c:~/h100-inference-and-observability$ curl -s http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"Qwen/Qwen3-30B-A3B-Instruct-2507","messages":[{"role":"user","content":"return the SQL: SELECT 1"}]}' \
+  | python3 -m json.tool
+{
+    "id": "chatcmpl-f69fc67f1fca4a6494792118d85f7aff",
+    "object": "chat.completion",
+    "created": 1781269298,
+    "model": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+    "choices": [
+        {
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": "The SQL statement `SELECT 1` is a simple query that returns a single row with a single column containing the value `1`. It is often used for testing connectivity, checking if a database is responsive, or as a placeholder in queries.\n\nHere is the SQL statement:\n\n```sql\nSELECT 1;\n```\n\n### Notes:\n- It returns exactly one row with the value `1`.\n- It does not depend on any table or column.\n- It's commonly used in:\n  - Database health checks.\n  - Subqueries where you only need to verify existence.\n  - Conditional logic in some database systems (e.g., `WHERE EXISTS (SELECT 1 FROM table WHERE ...)`).\n\nLet me know if you'd like to use it in a specific context!",
+                "refusal": null,
+                "annotations": null,
+                "audio": null,
+                "function_call": null,
+                "tool_calls": [],
+                "reasoning_content": null
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": null,
+            "token_ids": null
+        }
+    ],
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+        "prompt_tokens": 15,
+        "total_tokens": 171,
+        "completion_tokens": 156,
+        "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+}
+emanuel@computeinstance-e00d4cxffgr486vj8c:~/h100-inference-and-observability$ curl -s http://localhost:8000/metrics | grep -E '^vllm:(e2e_request_latency_seconds_bucket|gpu_cache_usage_perc|kv_cache_usage_perc|num_preemptions_total|generation_tokens_total)' | head
+vllm:gpu_cache_usage_perc{engine="0",model_name="Qwen/Qwen3-30B-A3B-Instruct-2507"} 0.0
+vllm:kv_cache_usage_perc{engine="0",model_name="Qwen/Qwen3-30B-A3B-Instruct-2507"} 0.0
+vllm:num_preemptions_total{engine="0",model_name="Qwen/Qwen3-30B-A3B-Instruct-2507"} 0.0
+vllm:generation_tokens_total{engine="0",model_name="Qwen/Qwen3-30B-A3B-Instruct-2507"} 156.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.3",model_name="Qwen/Qwen3-30B-A3B-Instruct-2507"} 0.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.5",model_name="Qwen/Qwen3-30B-A3B-Instruct-2507"} 0.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.8",model_name="Qwen/Qwen3-30B-A3B-Instruct-2507"} 0.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.0",model_name="Qwen/Qwen3-30B-A3B-Instruct-2507"} 0.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.5",model_name="Qwen/Qwen3-30B-A3B-Instruct-2507"} 1.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="2.0",model_name="Qwen/Qwen3-30B-A3B-Instruct-2507"} 1.0

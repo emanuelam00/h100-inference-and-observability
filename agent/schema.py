@@ -52,9 +52,21 @@ def render_schema(db_id: str) -> str:
                 col_lines.append(line)
             for fk in conn.execute(f"PRAGMA foreign_key_list({_q(t)})"):
                 # (id, seq, ref_table, from, to, on_update, on_delete, match)
-                col_lines.append(
-                    f"  FOREIGN KEY ({_q(fk[3])}) REFERENCES {_q(fk[2])}({_q(fk[4])})"
-                )
+                # SQLite leaves "to" (fk[4]) NULL when a FK references the target
+                # table's primary key without naming a column (seen in
+                # european_football_2, debit_card_specializing). Guard against
+                # that and any NULL from/table so rendering never crashes.
+                ref_table, from_col, to_col = fk[2], fk[3], fk[4]
+                if from_col is None or ref_table is None:
+                    continue
+                if to_col is None:
+                    col_lines.append(
+                        f"  FOREIGN KEY ({_q(from_col)}) REFERENCES {_q(ref_table)}"
+                    )
+                else:
+                    col_lines.append(
+                        f"  FOREIGN KEY ({_q(from_col)}) REFERENCES {_q(ref_table)}({_q(to_col)})"
+                    )
             parts.append(",\n".join(col_lines))
             parts.append(");")
     return "\n".join(parts)

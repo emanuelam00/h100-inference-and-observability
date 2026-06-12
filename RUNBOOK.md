@@ -234,6 +234,18 @@ If `torch.cuda.is_available()` is `False`, the driver isn't visible to the
 container/venv — fix that before `start_vllm.sh` (it would otherwise fail at
 model load). Then proceed with `H100_PLAYBOOK.md`.
 
+**Known issue — transformers 5.x:** vLLM 0.10.2 crashes at tokenizer load with
+`Qwen2Tokenizer has no attribute all_special_tokens_extended` because the lock
+resolves `transformers` to 5.x. Fix it with **`uv add`** (not `uv pip install` —
+`uv run` re-syncs the venv to the lock on every call and reverts a bare pip
+install):
+
+```bash
+uv add 'transformers>=4.51,<5'
+uv run python -c "import transformers; print(transformers.__version__)"   # expect 4.5x
+```
+This rewrites `pyproject.toml` + `uv.lock`; commit both so the pin sticks.
+
 ### B2. The run
 
 On the H100 only the LLM backend changes — no agent/eval/dashboard code edits:

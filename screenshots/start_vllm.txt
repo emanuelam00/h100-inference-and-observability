@@ -1,0 +1,127 @@
+emanuel@computeinstance-e00d4cxffgr486vj8c:~/h100-inference-and-observability$ bash scripts/start_vllm.sh
+INFO 06-12 12:51:21 [__init__.py:216] Automatically detected platform cuda.
+(APIServer pid=36240) INFO 06-12 12:51:22 [api_server.py:1896] vLLM API server version 0.10.2
+(APIServer pid=36240) INFO 06-12 12:51:22 [utils.py:328] non-default args: {'host': '0.0.0.0', 'model': 'Qwen/Qwen3-30B-A3B-Instruct-2507', 'dtype': 'bfloat16', 'max_model_len': 8192, 'served_model_name': ['Qwen/Qwen3-30B-A3B-Instruct-2507'], 'enable_prefix_caching': True, 'max_num_batched_tokens': 8192, 'max_num_seqs': 256}
+(APIServer pid=36240) INFO 06-12 12:51:29 [__init__.py:742] Resolved architecture: Qwen3MoeForCausalLM
+(APIServer pid=36240) `torch_dtype` is deprecated! Use `dtype` instead!
+(APIServer pid=36240) INFO 06-12 12:51:29 [__init__.py:1815] Using max model len 8192
+(APIServer pid=36240) INFO 06-12 12:51:29 [scheduler.py:222] Chunked prefill is enabled with max_num_batched_tokens=8192.
+INFO 06-12 12:51:33 [__init__.py:216] Automatically detected platform cuda.
+(EngineCore_DP0 pid=36613) INFO 06-12 12:51:34 [core.py:654] Waiting for init message from front-end.
+(EngineCore_DP0 pid=36613) INFO 06-12 12:51:34 [core.py:76] Initializing a V1 LLM engine (v0.10.2) with config: model='Qwen/Qwen3-30B-A3B-Instruct-2507', speculative_config=None, tokenizer='Qwen/Qwen3-30B-A3B-Instruct-2507', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=8192, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto, device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=Qwen/Qwen3-30B-A3B-Instruct-2507, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, pooler_config=None, compilation_config={"level":3,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":["vllm.unified_attention","vllm.unified_attention_with_output","vllm.mamba_mixer2","vllm.mamba_mixer","vllm.short_conv","vllm.linear_attention","vllm.plamo2_mamba_mixer","vllm.gdn_attention"],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"cudagraph_mode":1,"use_cudagraph":true,"cudagraph_num_of_warmups":1,"cudagraph_capture_sizes":[512,504,496,488,480,472,464,456,448,440,432,424,416,408,400,392,384,376,368,360,352,344,336,328,320,312,304,296,288,280,272,264,256,248,240,232,224,216,208,200,192,184,176,168,160,152,144,136,128,120,112,104,96,88,80,72,64,56,48,40,32,24,16,8,4,2,1],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"pass_config":{},"max_capture_size":512,"local_cache_dir":null}
+[W612 12:51:36.546861813 ProcessGroupNCCL.cpp:981] Warning: TORCH_NCCL_AVOID_RECORD_STREAMS is the default now, this environment variable is thus deprecated. (function operator())
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+(EngineCore_DP0 pid=36613) INFO 06-12 12:51:36 [parallel_state.py:1165] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+(EngineCore_DP0 pid=36613) WARNING 06-12 12:51:36 [topk_topp_sampler.py:69] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+(EngineCore_DP0 pid=36613) INFO 06-12 12:51:37 [gpu_model_runner.py:2338] Starting to load model Qwen/Qwen3-30B-A3B-Instruct-2507...
+(EngineCore_DP0 pid=36613) INFO 06-12 12:51:37 [gpu_model_runner.py:2370] Loading model from scratch...
+(EngineCore_DP0 pid=36613) INFO 06-12 12:51:37 [cuda.py:362] Using Flash Attention backend on V1 engine.
+(EngineCore_DP0 pid=36613) INFO 06-12 12:51:37 [weight_utils.py:348] Using model weights format ['*.safetensors']
+model-00001-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [01:53<00:00, 35.1MB/s]
+model-00004-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [02:12<00:00, 30.2MB/s]
+model-00002-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [02:18<00:00, 28.9MB/s]
+model-00007-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [02:19<00:00, 28.7MB/s]
+model-00005-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [02:20<00:00, 28.5MB/s]
+model-00003-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [02:21<00:00, 28.2MB/s]
+model-00006-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [02:24<00:00, 27.8MB/s]
+model-00008-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [02:26<00:00, 27.3MB/s]
+model-00016-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 1.09G/1.09G [00:31<00:00, 34.8MB/s]
+model-00010-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [01:44<00:00, 38.2MB/s]
+model-00014-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [01:48<00:00, 36.8MB/s]
+model-00012-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 3.99G/3.99G [01:52<00:00, 35.5MB/s]
+model-00009-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [02:18<00:00, 29.0MB/s]
+model-00011-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [01:56<00:00, 34.3MB/s]
+model-00013-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [01:55<00:00, 34.6MB/s]
+model-00015-of-00016.safetensors: 100%|█████████████████████████████████████████████████████████████████████████| 4.00G/4.00G [01:53<00:00, 35.2MB/s]
+(EngineCore_DP0 pid=36613) INFO 06-12 12:55:56 [weight_utils.py:369] Time spent downloading weights for Qwen/Qwen3-30B-A3B-Instruct-2507: 258.695921 seconds
+model.safetensors.index.json: 1.70MB [00:00, 42.4MB/s]
+Loading safetensors checkpoint shards:   0% Completed | 0/16 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards:   6% Completed | 1/16 [00:00<00:12,  1.25it/s]
+Loading safetensors checkpoint shards:  12% Completed | 2/16 [00:01<00:11,  1.19it/s]
+Loading safetensors checkpoint shards:  19% Completed | 3/16 [00:02<00:10,  1.18it/s]
+Loading safetensors checkpoint shards:  25% Completed | 4/16 [00:03<00:10,  1.18it/s]
+Loading safetensors checkpoint shards:  31% Completed | 5/16 [00:04<00:09,  1.20it/s]
+Loading safetensors checkpoint shards:  38% Completed | 6/16 [00:04<00:06,  1.56it/s]
+Loading safetensors checkpoint shards:  44% Completed | 7/16 [00:05<00:06,  1.43it/s]
+Loading safetensors checkpoint shards:  50% Completed | 8/16 [00:06<00:06,  1.33it/s]
+Loading safetensors checkpoint shards:  56% Completed | 9/16 [00:07<00:05,  1.26it/s]
+Loading safetensors checkpoint shards:  62% Completed | 10/16 [00:07<00:04,  1.22it/s]
+Loading safetensors checkpoint shards:  69% Completed | 11/16 [00:08<00:04,  1.18it/s]
+Loading safetensors checkpoint shards:  75% Completed | 12/16 [00:09<00:03,  1.16it/s]
+Loading safetensors checkpoint shards:  81% Completed | 13/16 [00:10<00:02,  1.15it/s]
+Loading safetensors checkpoint shards:  88% Completed | 14/16 [00:11<00:01,  1.15it/s]
+Loading safetensors checkpoint shards:  94% Completed | 15/16 [00:12<00:00,  1.15it/s]
+Loading safetensors checkpoint shards: 100% Completed | 16/16 [00:13<00:00,  1.16it/s]
+Loading safetensors checkpoint shards: 100% Completed | 16/16 [00:13<00:00,  1.21it/s]
+(EngineCore_DP0 pid=36613) 
+(EngineCore_DP0 pid=36613) INFO 06-12 12:56:10 [default_loader.py:268] Loading weights took 13.25 seconds
+(EngineCore_DP0 pid=36613) INFO 06-12 12:56:10 [gpu_model_runner.py:2392] Model loading took 56.9342 GiB and 272.946436 seconds
+(EngineCore_DP0 pid=36613) INFO 06-12 12:56:17 [backends.py:539] Using cache directory: /home/emanuel/.cache/vllm/torch_compile_cache/a3275ec682/rank_0_0/backbone for vLLM's torch.compile
+(EngineCore_DP0 pid=36613) INFO 06-12 12:56:17 [backends.py:550] Dynamo bytecode transform time: 6.90 s
+(EngineCore_DP0 pid=36613) INFO 06-12 12:56:21 [backends.py:194] Cache the graph for dynamic shape for later use
+(EngineCore_DP0 pid=36613) INFO 06-12 12:56:59 [backends.py:215] Compiling a graph for dynamic shape takes 41.81 s
+(EngineCore_DP0 pid=36613) WARNING 06-12 12:57:01 [fused_moe.py:727] Using default MoE config. Performance might be sub-optimal! Config file not found at ['/home/emanuel/h100-inference-and-observability/.venv/lib/python3.12/site-packages/vllm/model_executor/layers/fused_moe/configs/E=128,N=768,device_name=NVIDIA_H100_80GB_HBM3.json']
+(EngineCore_DP0 pid=36613) INFO 06-12 12:57:01 [monitor.py:34] torch.compile takes 48.71 s in total
+(EngineCore_DP0 pid=36613) INFO 06-12 12:57:03 [gpu_worker.py:298] Available KV cache memory: 12.82 GiB
+(EngineCore_DP0 pid=36613) INFO 06-12 12:57:03 [kv_cache_utils.py:864] GPU KV cache size: 139,984 tokens
+(EngineCore_DP0 pid=36613) INFO 06-12 12:57:03 [kv_cache_utils.py:868] Maximum concurrency for 8,192 tokens per request: 17.09x
+Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|███████████████████████████████████████████████████████| 67/67 [00:09<00:00,  7.27it/s]
+(EngineCore_DP0 pid=36613) INFO 06-12 12:57:13 [gpu_model_runner.py:3118] Graph capturing finished in 10 secs, took 0.69 GiB
+(EngineCore_DP0 pid=36613) INFO 06-12 12:57:13 [gpu_worker.py:391] Free memory on device (78.57/79.18 GiB) on startup. Desired GPU memory utilization is (0.9, 71.26 GiB). Actual usage is 56.93 GiB for weight, 1.44 GiB for peak activation, 0.07 GiB for non-torch memory, and 0.69 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=12859803033` to fit into requested memory, or `--kv-cache-memory=20712680448` to fully utilize gpu memory. Current kv cache memory in use is 13761578393 bytes.
+(EngineCore_DP0 pid=36613) INFO 06-12 12:57:13 [core.py:218] init engine (profile, create kv cache, warmup model) took 63.11 seconds
+(APIServer pid=36240) INFO 06-12 12:57:15 [loggers.py:142] Engine 000: vllm cache_config_info with initialization after num_gpu_blocks is: 8749
+(APIServer pid=36240) INFO 06-12 12:57:15 [async_llm.py:180] Torch profiler disabled. AsyncLLM CPU traces will not be collected.
+(APIServer pid=36240) INFO 06-12 12:57:15 [api_server.py:1692] Supported_tasks: ['generate']
+(APIServer pid=36240) WARNING 06-12 12:57:15 [__init__.py:1695] Default sampling parameters have been overridden by the model's Hugging Face generation config recommended from the model creator. If this is not intended, please relaunch vLLM instance with `--generation-config vllm`.
+(APIServer pid=36240) INFO 06-12 12:57:15 [serving_responses.py:130] Using default chat sampling params from model: {'temperature': 0.7, 'top_k': 20, 'top_p': 0.8}
+(APIServer pid=36240) INFO 06-12 12:57:15 [serving_chat.py:137] Using default chat sampling params from model: {'temperature': 0.7, 'top_k': 20, 'top_p': 0.8}
+(APIServer pid=36240) INFO 06-12 12:57:15 [serving_completion.py:76] Using default completion sampling params from model: {'temperature': 0.7, 'top_k': 20, 'top_p': 0.8}
+(APIServer pid=36240) INFO 06-12 12:57:15 [api_server.py:1971] Starting vLLM API server 0 on http://0.0.0.0:8000
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:36] Available routes are:
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /openapi.json, Methods: HEAD, GET
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /docs, Methods: HEAD, GET
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /docs/oauth2-redirect, Methods: HEAD, GET
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /redoc, Methods: HEAD, GET
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /health, Methods: GET
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /load, Methods: GET
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /ping, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /ping, Methods: GET
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /tokenize, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /detokenize, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v1/models, Methods: GET
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /version, Methods: GET
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v1/responses, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v1/responses/{response_id}, Methods: GET
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v1/responses/{response_id}/cancel, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v1/chat/completions, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v1/completions, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v1/embeddings, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /pooling, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /classify, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /score, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v1/score, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v1/audio/transcriptions, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v1/audio/translations, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /rerank, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v1/rerank, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /v2/rerank, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /scale_elastic_ep, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /is_scaling_elastic_ep, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /invocations, Methods: POST
+(APIServer pid=36240) INFO 06-12 12:57:15 [launcher.py:44] Route: /metrics, Methods: GET
+(APIServer pid=36240) INFO:     Started server process [36240]
+(APIServer pid=36240) INFO:     Waiting for application startup.
+(APIServer pid=36240) INFO:     Application startup complete.
+(APIServer pid=36240) INFO:     172.18.0.5:48140 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=36240) INFO:     172.18.0.5:48140 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=36240) INFO:     172.18.0.5:42816 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=36240) INFO:     172.18.0.5:42816 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=36240) INFO:     172.18.0.5:42816 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=36240) INFO:     172.18.0.5:42816 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=36240) INFO:     172.18.0.5:42816 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=36240) INFO:     172.18.0.5:42816 - "GET /metrics HTTP/1.1" 200 OK

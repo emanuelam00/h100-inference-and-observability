@@ -56,6 +56,18 @@ run), sustained over a 5-minute window.
   Needs Docker ≥8 GB RAM or clickhouse OOM-loops.
 - **Prompt brace bug:** `VERIFY_SYSTEM` is passed raw (not `.format`-ed), so its
   JSON example must use single braces, not `{{ }}`. Fixed.
+- **H100 vLLM crash (2026-06-12):** `transformers 5.x` is incompatible with vLLM
+  0.10.2 → `Qwen2Tokenizer has no attribute all_special_tokens_extended` at
+  tokenizer load. **`uv pip install 'transformers<5'` does NOT stick** — `uv run`
+  re-syncs the venv to the lock on every call and reverts it. Correct fix:
+  `uv add 'transformers>=4.51,<5'` (edits pyproject + relocks + installs). Fix
+  lives on the **H100** (uv add regenerated pyproject+lock there); Mac pyproject
+  left untouched to avoid a merge conflict → **commit pyproject.toml + uv.lock
+  from the H100.** Latent until now (tokenizer only loads when serving; Nebius
+  never did). Fallback: `source .venv/bin/activate` + python directly (bypasses
+  uv run's resync).
+- **vLLM ignores `.env`:** must `export HF_TOKEN` in the shell before
+  `start_vllm.sh`, else unauthenticated/slow HF downloads.
 
 ## 4b. Environment specs (→ future README prerequisite)
 - **Dev VM:** Ubuntu 24.04, **4 vCPU / 32 GB RAM** (Emanuel's). Comfortably
@@ -108,7 +120,72 @@ gpu-mem-util 0.90, max-num-seqs 256, prefix-caching; Phase-6 levers listed),
 `scripts/check_env.sh` (pre-flight: driver/uv/docker/disk/ports), RUNBOOK Stage B
 (env check + `uv sync` GPU install + CPU build appendix).
 
-**Next:** user books H100 → run H100_PLAYBOOK → fill REPORT.md with real numbers.
+**H100 Phase 1 (2026-06-12): vLLM 0.10.2 SERVING the 30B on :8000.** Prometheus
+scraping confirmed (200 OK from docker net). Key startup facts for REPORT/Phase 6:
+- weights 56.9 GiB; with gpu-mem-util 0.90 → **KV cache only 12.8 GiB = ~140k
+  tokens = ~17x concurrency** at max-model-len 8192. THE lever if queue-bound:
+  lower max-model-len (→4096) or raise gpu-mem-util.
+- perf warnings (→ "more time" / Phase 6): no tuned MoE kernel config for this
+  H100 shape; FlashInfer not installed (PyTorch-native sampling fallback).
+- server default sampling temp=0.7 (agent overrides to 0.0 per-request → eval
+  determinism preserved).
+
+**H100 REAL BASELINE (Phase 5, 2026-06-12) — results/eval_baseline.json:**
+overall **40%** (12/30); per-iter **iter0 36.7% → iter1 40% → iter2 40%**; 10
+revised; mean **1.004s/agent-run** (single-shot, well under 5s SLO); 0 errors.
+Loop earns its keep modestly (+1 q / +3.3pts at iter1); 2nd revise adds nothing.
+Closely matches Nebius dev run → validates the dev approach. Phase 4 Langfuse
+confirmed: traces show generate→verify→revise waterfall; metadata source/db_id
+attached (filterable). Agent latency ~1s local vs ~1.8s Nebius (no network hop).
+
+**H100 PHASE 6 — baseline load test (10 RPS / 300s): SLO BADLY MISSED.**
+load_test.json: p50 **69s**, p95 **83s**, p99 90s, max 113s (target P95<5s → ~16x
+over); achieved only 8.3 RPS; **~13% errors** (379 http + 14 timeout / 3000).
+- **Diagnosis (metric-grounded): prefill-throughput-bound at vLLM, amplified by
+  the agent's ~3 calls/run.** Offered ≈10 RPS×3 = ~30 calls/s vs vLLM ceiling
+  ~15-18 calls/s ("requests finished/s" panel); prompt-tok pinned ~13K, gen ~1K.
+  vLLM queue grows unbounded → calls exceed 60s client timeout (the 379 errors).
+  KV stayed ~8%, preemptions 0 → NOT memory-bound.
+- Dashboard caveat: e2e_request_latency is per-CALL (driver is per-RUN); histogram
+  buckets top at 8s so panel can't show true 60s+ tail (Phase 2 learning).
+- **Lever direction:** no single vLLM flag 4x's prefill on 1 H100 → reduce offered
+  load (fewer calls/run e.g. cheaper/skippable verify, or find sustainable RPS).
+  Decide after confirming steady-state (waiting↑, requests/s ceiling, KV low).
+
+**Phase 6 full-window steady-state CONFIRMED diagnosis:** waiting(queue)=0 whole
+test, requests-finished ~30 calls/s, KV ~15%, preemptions 0, per-call p99 ~5s.
+→ vLLM healthy w/ headroom; **SLO miss is the AGENT SERVER, not the model.**
+
+**Phase 6 ITERATION 1 — agent workers (`uvicorn --workers 4`):**
+load_test_after.json: p50 **2.2s** (was 69s), p95 **10.2s** (was 83s), p99 17s
+(was 90s). **p95 down 8x, p50 down 31x** — confirms agent-concurrency bottleneck.
+Grafana dashboard ~unchanged (vLLM was never the constraint = the lesson). SLO
+still missed (10.2s vs 5s) but 16x→2x over. *"saw vLLM queue=0 yet run-P95=83s →
+hypothesized agent sync-handler concurrency limit → scaled to 4 workers → P95
+83s→10.2s."*
+
+**Second finding:** http_errors = **exactly 379 in BOTH runs** → deterministic,
+not load → almost certainly **context-length overflow** (big BIRD schemas >
+max-model-len 8192). ~12.6% error rate. Separate fix (raise max-model-len / trim
+schema). CONFIRM via agent log (BadRequestError/max context length).
+
+**379 errors ROOT-CAUSED (iter 2):** diagnosis arc = context-length (disproved,
+max prompt 1435 tok) → missing-db (disproved, 0 missing) → instrumented actual
+exception → **bug in provided `agent/schema.py`**: `render_schema` crashes
+(`AttributeError: NoneType .replace`) on FKs where SQLite leaves the "to" column
+(fk[4]) NULL — hits `european_football_2` (129) + `debit_card_specializing` (64)
+= 193 q = all 1500-pool render failures = the 12.6% load errors. **Fixed**
+schema.py to guard NULL fk target/from/table. So the 379 were INVALID-INPUT
+(schema render), NOT overload — true serving error rate ~0. (eval_set has none of
+these 2 DBs → eval baseline unaffected; quality unchanged.)
+
+**Phase 6 final config = uvicorn --workers 4 + schema fix.** Pending final runs:
+load_test_final.json (expect errors ~0), eval_after_tuning.json (expect ~40%).
+
+**Next:** capture final numbers → write REPORT.md. Strong Phase 6: baseline SLO
+16x miss → diagnosed agent-concurrency past a green vLLM dashboard → workers (8x)
+→ root-caused + fixed a deterministic schema bug. SLO still ~2x missed on latency
+(honest: agent does 2-4 sequential 30B calls/run; would need fewer calls/run).
 
 **Prompt tweak v2 (2026-06-06, Nebius — KEPT):** added DISTINCT nudge
 (generate+revise) + verify duplicate-row check. Result: overall flat 40%, but
