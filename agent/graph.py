@@ -30,8 +30,10 @@ from agent.execution import ExecutionResult, execute_sql
 from agent.schema import render_schema
 
 # Total generate + revise calls before the loop is forced to stop.
-# 3-5 is a reasonable range; tune it as part of Phase 3.
-MAX_ITERATIONS = 3
+# Set to 2 (1 generate + 1 revise): the Phase 5 eval showed iter-2 pass rate
+# equal to iter-1, so the second revise never helped - capping at 2 removes a
+# wasted LLM round-trip per failing run (Phase 6 latency).
+MAX_ITERATIONS = 2
 
 
 @dataclass
@@ -104,6 +106,32 @@ def _parse_verdict(text: str) -> tuple[bool, str]:
     return False, "could not parse verifier output"
 
 
+def _precheck(execution: ExecutionResult | None) -> tuple[bool, bool, str]:
+    """Cheap deterministic verify, no LLM call.
+
+    Returns (decided, ok, issue):
+      - decided=True: we can rule on this result without the LLM.
+          * SQL errored / no result        -> (True, False, <error>)   auto-fail
+          * non-empty, no duplicate rows    -> (True, True,  "")        auto-pass
+      - decided=False: ambiguous, escalate to the LLM verifier.
+          * zero rows (maybe wrong, maybe legitimately empty)
+          * duplicate-bloat (maybe a missing DISTINCT, maybe fine)
+    """
+    if execution is None:
+        return True, False, "no execution result"
+    if not execution.ok:
+        return True, False, f"SQL error: {execution.error}"
+    if execution.row_count == 0:
+        return False, False, ""  # ambiguous -> LLM
+    rows = execution.rows or []
+    try:
+        if len(rows) != len(set(rows)):
+            return False, False, ""  # duplicate rows -> LLM (e.g. missing DISTINCT)
+    except TypeError:
+        pass  # unhashable cell types -> skip the dup check
+    return True, True, ""  # clean, non-empty -> accept without an LLM call
+
+
 def generate_sql_node(state: AgentState) -> dict:
     """Worked example - the other LLM nodes follow this same shape.
 
@@ -144,9 +172,23 @@ def verify_node(state: AgentState) -> dict:
     view of the rows or error to feed into the prompt.
 
     Return: {"verify_ok": <bool>, "verify_issue": <str>}.
-    What counts as "not plausible" is yours to define - see the Phase 3 targets
-    in the README.
+
+    Optimization (Phase 6): a cheap deterministic pre-check handles the
+    unambiguous cases without an LLM call - SQL errors auto-fail, clean
+    non-empty results auto-pass - and only escalates the genuinely ambiguous
+    cases (zero rows, duplicate-bloat) to the LLM verifier. This cuts the
+    verify LLM call on the clean majority of runs while preserving the catches
+    that earn the loop its keep.
     """
+    decided, ok, issue = _precheck(state.execution)
+    if decided:
+        return {
+            "verify_ok": ok,
+            "verify_issue": issue,
+            "history": state.history + [{"node": "verify", "ok": ok, "issue": issue, "method": "precheck"}],
+        }
+
+    # Ambiguous -> ask the LLM verifier.
     result_text = state.execution.render() if state.execution else "ERROR: no execution result"
     response = llm().invoke([
         ("system", prompts.VERIFY_SYSTEM),
@@ -156,11 +198,11 @@ def verify_node(state: AgentState) -> dict:
             result=result_text,
         )),
     ])
-    ok, issue = _parse_verdict(response.content)
+    llm_ok, llm_issue = _parse_verdict(response.content)
     return {
-        "verify_ok": ok,
-        "verify_issue": issue,
-        "history": state.history + [{"node": "verify", "ok": ok, "issue": issue}],
+        "verify_ok": llm_ok,
+        "verify_issue": llm_issue,
+        "history": state.history + [{"node": "verify", "ok": llm_ok, "issue": llm_issue, "method": "llm"}],
     }
 
 

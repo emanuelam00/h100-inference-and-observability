@@ -4,7 +4,7 @@
 > compaction and seeds a future project WIKI. Captures decisions, open
 > questions, clarifications, failures/gotchas, and progress.
 > **Cadence.** Refreshed roughly every 5 interactions.
-> **Last updated:** 2026-06-06 · interaction ~30 · *Stage A fully validated; H100 prep done.*
+> **Last updated:** 2026-06-12 · interaction ~52 · *All phases run on H100; REPORT.md written.*
 
 ---
 
