@@ -1,16 +1,15 @@
-# RUNBOOK — local development on the Ubuntu VM
+# Runbook: local development (Ubuntu, no GPU)
 
-This is the operational guide for running everything we built in **Stage A**
-against **Nebius** (hosted Qwen3-30B) on your Ubuntu 24.04 dev box — no GPU
-needed. Stage B (the H100 run) is one `.env` switch away and is covered at the
-end.
+The operational guide for building and validating the whole pipeline against a
+hosted OpenAI-compatible endpoint on an Ubuntu box, with no GPU. The real GPU run
+is one `.env` switch away and is covered at the end (see also `H100_PLAYBOOK.md`).
 
 > The agent is just an OpenAI-compatible HTTP client. The single switch that
 > decides where its LLM calls go is `LLM_BACKEND` in `.env` (see `agent/config.py`).
 
 ---
 
-## 0. Prereqs (Ubuntu 24.04)
+## 0. Prerequisites (Ubuntu 24.04)
 
 ### 0a. Base packages
 
@@ -46,7 +45,7 @@ Run Docker without `sudo` (needed so `docker compose up` works as your user):
 
 ```bash
 sudo usermod -aG docker "$USER"
-newgrp docker        # applies the group now; or just log out and back in
+newgrp docker        # applies the group now, or just log out and back in
 ```
 
 Verify:
@@ -57,10 +56,10 @@ docker compose version      # Docker Compose version v2.x.x  (note: "compose", n
 docker run --rm hello-world # should print "Hello from Docker!"
 ```
 
-> The Compose **plugin** (`docker compose`, space) is what `docker-compose.yml`
-> in this repo expects — not the old standalone `docker-compose` (hyphen).
+> The Compose plugin (`docker compose`, with a space) is what `docker-compose.yml`
+> in this repo expects, not the old standalone `docker-compose` (hyphen).
 
-### 0c. uv (Python package/run manager)
+### 0c. uv (Python package and run manager)
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -71,16 +70,16 @@ uv --version
 
 ### 0d. Memory note
 
-The Langfuse stack is heavy (postgres + clickhouse + redis + minio + 2 langfuse
-services). Give Docker **≥ 8 GB RAM** (16 GB comfortable) or clickhouse will
+The Langfuse stack is heavy (postgres, clickhouse, redis, minio, and 2 Langfuse
+services). Give Docker at least **8GB RAM** (16GB comfortable) or clickhouse will
 OOM-loop. Check with `free -h`.
 
 ---
 
-## 1. Phase 0 — setup
+## 1. Setup
 
 ```bash
-git clone git@github.com:emanuelam00/h100-inference-and-observability.git
+git clone <your-repo-url>
 cd h100-inference-and-observability
 
 cp .env.example .env
@@ -103,7 +102,7 @@ Prometheus `:9090`, Grafana `:3000` (admin/admin), Langfuse `:3001`.
 
 ---
 
-## 2. Phase 3 — run & test the agent
+## 2. Run and test the agent
 
 ```bash
 uv run uvicorn agent.server:app --host 0.0.0.0 --port 8001
@@ -120,33 +119,32 @@ curl -s -X POST http://localhost:8001/answer \
   -d '{"question": "<paste a question>", "db": "<paste its db_id>"}' | python3 -m json.tool
 ```
 
-The response includes `history` — that's the `generate_sql → verify → (revise)`
-trail. **Checkpoint:** find at least one question where `history` contains a
-`revise` entry (verify said `ok:false` and the loop re-ran). A good way to force
-one is a question whose obvious first query returns zero rows or the wrong
-column. Note which question triggered it — you'll cite it in the report.
+The response includes `history`, the generate_sql, verify, (revise) trail. As a
+check, find at least one question where `history` contains a `revise` entry (verify
+returned `ok:false` and the loop re-ran). A reliable way to trigger one is a
+question whose obvious first query returns zero rows or duplicate rows.
 
 ---
 
-## 3. Phase 4 — Langfuse tracing
+## 3. Langfuse tracing
 
-1. Open `http://localhost:3001`, sign up (local, instant), create/confirm a project.
-2. Settings → API Keys → create. Copy public + secret keys into `.env`:
+1. Open `http://localhost:3001`, sign up (local, instant), create or confirm a project.
+2. Settings, API Keys, create. Copy the public and secret keys into `.env`:
    ```
    LANGFUSE_PUBLIC_KEY=pk-...
    LANGFUSE_SECRET_KEY=sk-...
    LANGFUSE_HOST=http://localhost:3001
    ```
-3. Restart the agent server (it reads the keys at startup and attaches the
-   callback handler — already wired in `agent/server.py`).
-4. Fire ~10 questions (loop the curl above, or just run the eval in step 4).
-5. In Langfuse you should see each run as a trace with `generate_sql`, `verify`,
-   and sometimes `revise` as nested spans (prompt, response, latency, tokens).
-   Tags `source=eval` / `db_id=...` are attached for Phase 6 filtering.
+3. Restart the agent server. It reads the keys at startup and attaches the callback
+   handler (already wired in `agent/server.py`).
+4. Fire about 10 questions (loop the curl above, or just run the eval in step 4).
+5. In Langfuse you should see each run as a trace with `generate_sql`, `verify`, and
+   sometimes `revise` as nested spans (prompt, response, latency, tokens). Tags
+   `source=eval` and `db_id=...` are attached as filterable metadata.
 
 ---
 
-## 4. Phase 5 — eval harness (dev validation)
+## 4. Eval harness (dev validation)
 
 With the agent running:
 
@@ -155,38 +153,39 @@ uv run python evals/run_eval.py --out results/eval_baseline.json
 cat results/eval_baseline.json | python3 -m json.tool | head -40
 ```
 
-Look at `pass_rate_by_iteration`: if iter 0 ≈ iter 2, the loop isn't earning its
-keep; if iter 2 > iter 0, it is. **These dev numbers are throwaway** — the real
-baseline must come from the H100 (Stage B). This step only proves the harness
+Look at `pass_rate_by_iteration`. If iter 0 is about equal to iter 2, the loop is
+not earning its keep. If iter 2 is higher than iter 0, it is. These dev numbers are
+throwaway. The real baseline comes from the H100. This step only proves the harness
 works end-to-end.
 
 ---
 
-## 5. Phase 2 — dashboard (local, with the mock exporter)
+## 5. Dashboard (local, with the mock exporter)
 
-The dev box can't run vLLM, so use the mock to give Prometheus something to
-scrape on `:8000` (the exact port + metric names real vLLM uses):
+The dev box cannot run vLLM, so use the mock to give Prometheus something to scrape
+on `:8000` (the exact port and metric names real vLLM uses):
 
 ```bash
 uv run python scripts/mock_vllm_metrics.py        # serves :8000/metrics
 ```
 
-- Open Grafana `:3000` → the **vLLM serving** dashboard (auto-provisioned).
-- Every panel should be moving within ~15s. To make latency/queue/KV/preemptions
-  jump for a screenshot: `curl http://localhost:8000/burst` (spikes load ~45s).
-- This validates the queries, units, percentiles and thresholds. The numbers are
-  fake; the wiring is real. On the H100 you stop this and start real vLLM on the
-  same port — the dashboard is unchanged.
+- Open Grafana `:3000`, the **vLLM serving** dashboard (auto-provisioned).
+- Every panel should be moving within about 15s. To make latency, queue, KV, and
+  preemptions jump for a screenshot: `curl http://localhost:8000/burst` (spikes load
+  for about 45s).
+- This validates the queries, units, percentiles, and thresholds. The numbers are
+  synthetic, the wiring is real. On the H100 you stop this and start real vLLM on the
+  same port, and the dashboard is unchanged.
 
 ---
 
-## Stage A.5 (optional) — real vLLM metrics on CPU
+## Optional: real vLLM metrics on CPU
 
-To validate the dashboard against a *real* vLLM exporter (not the mock), run a
-tiny model on CPU. This is plumbing-only — the model's SQL quality is irrelevant.
+To validate the dashboard against a real vLLM exporter (not the mock), run a tiny
+model on CPU. This is plumbing only, the model's SQL quality is irrelevant.
 
 ```bash
-# CPU vLLM install: https://docs.vllm.ai/en/latest/getting_started/installation/cpu.html
+# CPU vLLM install: https://docs.vllm.ai/en/latest/getting_started/installation/cpu/
 # then serve a small stand-in on :8000
 uv run python -m vllm.entrypoints.openai.api_server --model Qwen/Qwen3-0.6B --port 8000 --device cpu
 ```
@@ -195,34 +194,32 @@ Set `LLM_BACKEND=cpu` in `.env` if you also want the agent to talk to it.
 
 ---
 
-## Stage B — the H100 run (numbers that count)
+## Moving to the H100
 
-> Full ordered, fail-fast session is in **`H100_PLAYBOOK.md`**. This section is
-> just the *bring-up*: how to see what the VM has and how vLLM gets installed.
+> Full ordered, fail-fast session is in **`H100_PLAYBOOK.md`**. This section is just
+> the bring-up: how to see what the box has and how vLLM gets installed.
 
-### B0. Environment check (what's already on the Nebius H100 VM?)
+### Environment check
 
-Nebius H100 images usually ship the **NVIDIA driver + CUDA** (and often Docker)
-but may lack `uv`, the Docker Compose plugin, or `python3-dev`. After cloning the
-repo, run the pre-flight to see exactly what's present vs missing — it installs
-nothing, only reports:
+A fresh GPU box usually ships the NVIDIA driver and CUDA (and often Docker) but may
+lack `uv`, the Docker Compose plugin, or `python3-dev`. After cloning the repo, run
+the pre-flight to see exactly what is present versus missing. It installs nothing,
+it only reports:
 
 ```bash
 bash scripts/check_env.sh
 ```
 
-The must-haves it checks: `nvidia-smi` working (driver + the H100 visible),
-`python3` + `python3-dev` headers, `uv`, `git`, `docker` + `docker compose`
-plugin + daemon reachable, ~70 GB free disk (the 30B weights), and that ports
-8000/8001/9090/3000/3001 are free. Install anything marked `✗ MISSING` using the
-commands in §0 above.
+It checks `nvidia-smi` (driver and GPU visible), `python3` plus `python3-dev`
+headers, `uv`, `git`, `docker` plus the compose plugin and a reachable daemon, about
+70GB of free disk (the 30B weights), and that ports 8000/8001/9090/3000/3001 are
+free. Install anything marked MISSING using the commands in section 0.
 
-### B1. Install vLLM (GPU path — the one you'll use)
+### Install vLLM (GPU path)
 
-vLLM (CUDA build, pinned to **0.10.2** in `uv.lock`) and all other deps install
-in one step — no manual build, no `nvcc` needed (the wheel bundles its own CUDA
-runtime; you only need the NVIDIA **driver** present, which `check_env.sh`
-verifies):
+vLLM (CUDA build, pinned to 0.10.2 in `uv.lock`) and all other deps install in one
+step. No manual build, no `nvcc` needed (the wheel bundles its own CUDA runtime, you
+only need the NVIDIA driver present, which `check_env.sh` verifies):
 
 ```bash
 uv sync
@@ -230,13 +227,13 @@ uv sync
 uv run python -c "import torch; print('CUDA:', torch.cuda.is_available(), '|', torch.cuda.get_device_name(0))"
 ```
 
-If `torch.cuda.is_available()` is `False`, the driver isn't visible to the
-container/venv — fix that before `start_vllm.sh` (it would otherwise fail at
-model load). Then proceed with `H100_PLAYBOOK.md`.
+If `torch.cuda.is_available()` is `False`, the driver is not visible to the
+container or venv. Fix that before `start_vllm.sh`, which would otherwise fail at
+model load.
 
-**Known issue — transformers 5.x:** vLLM 0.10.2 crashes at tokenizer load with
+**Known issue, transformers 5.x.** vLLM 0.10.2 crashes at tokenizer load with
 `Qwen2Tokenizer has no attribute all_special_tokens_extended` because the lock
-resolves `transformers` to 5.x. Fix it with **`uv add`** (not `uv pip install` —
+resolves `transformers` to 5.x. Fix it with `uv add` (not `uv pip install`, because
 `uv run` re-syncs the venv to the lock on every call and reverts a bare pip
 install):
 
@@ -244,25 +241,24 @@ install):
 uv add 'transformers>=4.51,<5'
 uv run python -c "import transformers; print(transformers.__version__)"   # expect 4.5x
 ```
-This rewrites `pyproject.toml` + `uv.lock`; commit both so the pin sticks.
+This rewrites `pyproject.toml` and `uv.lock`. Commit both so the pin sticks.
 
-### B2. The run
+### The run
 
-On the H100 only the LLM backend changes — no agent/eval/dashboard code edits:
+On the H100 only the LLM backend changes, no agent, eval, or dashboard code edits:
 
 1. `.env`: `LLM_BACKEND=h100` and set `HF_TOKEN` (so vLLM can pull the model).
-2. `bash scripts/start_vllm.sh` (flags pre-reasoned in the script; Phase 1).
-3. Stop the mock exporter; Prometheus now scrapes real vLLM on `:8000`.
-4. Eval → `results/eval_baseline.json` (the real baseline).
-5. Load test → `uv run python load_test/driver.py --rps 10 --duration 300`;
-   diagnose, iterate, save `results/eval_after_tuning.json`.
+2. `bash scripts/start_vllm.sh` (flags pre-reasoned in the script).
+3. Stop the mock exporter. Prometheus now scrapes real vLLM on `:8000`.
+4. Eval to `results/eval_baseline.json` (the real baseline).
+5. Load test: `uv run python load_test/driver.py --rps 10 --duration 300`, then
+   diagnose, iterate, and save `results/eval_after_tuning.json`.
 
 ---
 
-## Appendix — vLLM CPU build (reference only; NOT used here)
+## Appendix: vLLM CPU build (reference only, not used here)
 
-We do **not** use this: it requires an **x86 CPU with AVX512**, and our dev VM
-(Xeon E5-2660 v2) lacks it, while the H100 box uses the GPU wheel above. Kept for
+This is not used in this repo. It requires an x86 CPU with AVX512. Kept for
 completeness if you ever need a CPU stand-in on AVX512 hardware.
 
 ```bash
@@ -273,7 +269,7 @@ git clone https://github.com/vllm-project/vllm.git && cd vllm
 uv venv && source .venv/bin/activate
 uv pip install -r requirements/cpu.txt --torch-backend cpu
 VLLM_TARGET_DEVICE=cpu uv pip install --editable .
-# Serve a small stand-in (reserve 1-2 cores for the framework):
+# Serve a small stand-in (reserve 1 to 2 cores for the framework):
 export VLLM_CPU_KVCACHE_SPACE=8
 vllm serve Qwen/Qwen3-0.6B --port 8000
 ```
@@ -282,29 +278,12 @@ Ref: https://docs.vllm.ai/en/latest/getting_started/installation/cpu/
 
 ---
 
-## Git
-
-Remotes are already set: `origin` = your repo, `upstream` = course repo.
-To push Stage A:
-
-```bash
-git add -A
-git commit -m "Stage A: backend config, agent loop, eval harness, dashboard + mock exporter"
-git push -u origin main
-```
-
-> ⚠️ **Submission reminder (later):** `.gitignore` currently excludes
-> `results/*.json` and `screenshots/*.png`, but those are required deliverables.
-> When you submit, force-add them: `git add -f results/*.json screenshots/*.png`.
-
----
-
 ## Quick port reference
 
-| Port | Service        |
-|------|----------------|
+| Port | Service |
+|------|---------|
 | 8000 | vLLM (or mock exporter) |
-| 8001 | agent server   |
-| 9090 | Prometheus     |
+| 8001 | agent server |
+| 9090 | Prometheus |
 | 3000 | Grafana (admin/admin) |
-| 3001 | Langfuse       |
+| 3001 | Langfuse |
