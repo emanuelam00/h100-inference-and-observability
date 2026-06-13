@@ -16,6 +16,15 @@ the right metric at each step took end-to-end p95 latency from **83s to 5.3s
 > (30B MoE, 3.3B active). Data and evaluation: [BIRD-bench](https://bird-bench.github.io/).
 > Hardware: 1x H100 80GB.
 
+## About
+
+An end-to-end, reproducible reference for running an open-weights LLM in
+production: vLLM serving, a Prometheus, Grafana, and Langfuse observability stack,
+a LangGraph agent, execution-accuracy evaluation, and a metric-grounded SLO
+investigation, all on a single H100. It is meant to be read and run, and it doubles
+as a worked example of debugging performance when the serving dashboard looks
+healthy but the SLO does not (see `DECISIONS.md`).
+
 ---
 
 ## What this repo demonstrates
